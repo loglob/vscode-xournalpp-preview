@@ -22,9 +22,8 @@
         "viewType": "xournalpp-preview.editor",
         "displayName": "Xournalpp Document",
         "selector": [
-          {
-            "filenamePattern": "*.xopp"
-          }
+          { "filenamePattern": "*.xopp" },
+          { "filenamePattern": "*.xoj" }
         ]
       }
     ]
