@@ -12,10 +12,15 @@
   "activationEvents": [],
   "main": "./out/extension.js",
   "contributes": {
-    "commands": [
+    "customEditors": [
       {
-        "command": "xournalpp-preview.helloWorld",
-        "title": "Hello World"
+        "viewType": "xournalpp-preview.editor",
+        "displayName": "Xournalpp Document",
+        "selector": [
+          {
+            "filenamePattern": "*.xopp"
+          }
+        ]
       }
     ]
   },
