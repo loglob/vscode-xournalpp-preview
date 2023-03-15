@@ -61,12 +61,47 @@ export class XoppEditorProvider implements CustomReadonlyEditorProvider<XoppDocu
 			.map(f => `<img src="${f}">`)
 			.join("<br/>");
 
-		// Default localResourceRoots prevents loading from cache, despite listing the extension path.
-		webviewPanel.webview.options = {}
+			// Default localResourceRoots prevents loading from cache, despite listing the extension path.
+		webviewPanel.webview.options = {
+			enableScripts: true
+		}
 
-		webviewPanel.webview.html = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"></head><body>`
+		webviewPanel.webview.html = `<!DOCTYPE html><html lang="en"><head>
+			<meta charset="UTF-8">
+			<style>
+				img:
+				{
+					max-width: none;
+					max-height: none;
+					width: 100%;
+				}
+			</style>
+			<script>
+				const maxZoom = 3.0;
+				const minZoom = 0.2;
+				const magnify = .5;
+				const minimize = .1;
+				var zoomLevel = 1.0;
+
+				document.addEventListener("wheel", evnt => {
+					if(evnt.ctrlKey)
+					{
+						const zoomStep = zoomLevel > 1.0 ? magnify
+							: zoomLevel < 1.0 ? minimize
+								: evnt.deltaY < 0 ? magnify : minimize;
+
+						zoomLevel -= Math.sign(evnt.deltaY) * zoomStep;
+						zoomLevel = Math.max(minZoom, Math.min(maxZoom, zoomLevel))
+						// zoom by changing container width, the actual zoom property behaves weird
+						document.getElementById("pages").style.width = \`\${zoomLevel * 100}%\`;
+
+						return false;
+					}
+				})
+			</script>
+		</head><body><div id="pages">`
 			+ pages
-			+ '</body></html>';
+			+ '</div></body></html>';
 	}
 
 	public static readonly viewType = "xournalpp-preview.editor"
