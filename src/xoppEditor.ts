@@ -67,7 +67,18 @@ export class XoppEditorProvider implements CustomReadonlyEditorProvider<XoppDocu
 
 	async resolveCustomEditor(document: XoppDocument, webviewPanel: WebviewPanel, token: CancellationToken): Promise<void>
 	{
+		function pageNumber(file : string) : number
+		{
+			const m = file.match(/\d+/);
+
+			if(m === null)
+				throw Error("Bad file in temp directory");
+
+			return parseInt(m[0]);
+		}
+
 		var pages = (await fs.readdir(document.pageDir))
+			.sort((a,b) => pageNumber(a) - pageNumber(b))
 			.map(f => webviewPanel.webview.asWebviewUri(
 				Uri.joinPath(this.context.extensionUri, "cache", path.basename(document.pageDir), f)
 			))
