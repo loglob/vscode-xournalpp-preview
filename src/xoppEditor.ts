@@ -1,8 +1,9 @@
 import { CancellationToken, CustomDocument, CustomDocumentOpenContext,
-		CustomReadonlyEditorProvider, ExtensionContext, Uri, WebviewPanel } from 'vscode';
+		CustomReadonlyEditorProvider, ExtensionContext, Uri,
+		WebviewPanel, window, workspace } from 'vscode';
 import * as path from "path";
 import * as cp from "child_process"
-import { mkdtemp, mkdir, readdir, rm } from 'fs/promises';
+import * as fs from 'fs/promises';
 
 class XoppDocument implements CustomDocument
 {
@@ -11,7 +12,7 @@ class XoppDocument implements CustomDocument
 
 	dispose(): void
 	{
-		rm(this.pageDir, { recursive: true })
+		fs.rm(this.pageDir, { recursive: true })
 	}
 
 	constructor(uri : Uri, pageDir : string)
@@ -33,15 +34,24 @@ export class XoppEditorProvider implements CustomReadonlyEditorProvider<XoppDocu
 	async openCustomDocument(uri: Uri, openContext: CustomDocumentOpenContext,
 		_token: CancellationToken): Promise<XoppDocument>
 	{
-		var cacheDir = path.join(this.context.extensionPath, "cache");
-		await mkdir(cacheDir, { recursive: true });
+		const cacheDir = path.join(this.context.extensionPath, "cache");
+		await fs.mkdir(cacheDir, { recursive: true });
+		const pageLoc = await fs.mkdtemp(cacheDir + path.sep);
 
-		openContext.backupId
+		if(typeof openContext.backupId === "string")
+			uri = Uri.parse(openContext.backupId);
 
-		var pageLoc = await mkdtemp(cacheDir + path.sep);
-		var file = typeof openContext.backupId === "string"
-			? Uri.parse(openContext.backupId).fsPath
-			: uri.fsPath;
+		var tmpFile = false;
+
+		var file;
+		if(uri.scheme !== "file")
+		{
+			tmpFile = true;
+			file = path.join(cacheDir, "temp.xopp");
+			await workspace.fs.copy(uri, Uri.file(file));
+		}
+		else
+			file = uri.fsPath;
 
 		// no nice promise wrappers??
 		var proc = cp.spawnSync("xournalpp", [ file, "-i", pageLoc + "/page.png" ]);
@@ -49,12 +59,15 @@ export class XoppEditorProvider implements CustomReadonlyEditorProvider<XoppDocu
 		if(proc.status != 0)
 			throw new Error("Invoking xournalpp failed: " + proc.error?.message);
 
+		if(tmpFile)
+			await fs.rm(file);
+
 		return new XoppDocument(uri, pageLoc);
 	}
 
 	async resolveCustomEditor(document: XoppDocument, webviewPanel: WebviewPanel, token: CancellationToken): Promise<void>
 	{
-		var pages = (await readdir(document.pageDir))
+		var pages = (await fs.readdir(document.pageDir))
 			.map(f => webviewPanel.webview.asWebviewUri(
 				Uri.joinPath(this.context.extensionUri, "cache", path.basename(document.pageDir), f)
 			))
