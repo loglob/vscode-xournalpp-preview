@@ -1,5 +1,5 @@
 import { CancellationToken, CustomDocument, CustomDocumentOpenContext,
-		CustomReadonlyEditorProvider, ExtensionContext, Uri,
+		CustomReadonlyEditorProvider, ExtensionContext, FileType, Uri,
 		WebviewPanel, window, workspace } from 'vscode';
 import * as path from "path";
 import * as cp from "child_process"
@@ -8,14 +8,15 @@ import * as fs from 'fs/promises';
 class XoppDocument implements CustomDocument
 {
 	public readonly uri: Uri;
-	public readonly pageDir : string;
+	public readonly pageDir : string|null;
 
 	dispose(): void
 	{
-		fs.rm(this.pageDir, { recursive: true })
+		if(this.pageDir !== null)
+			fs.rm(this.pageDir, { recursive: true })
 	}
 
-	constructor(uri : Uri, pageDir : string)
+	constructor(uri : Uri, pageDir : string|null)
 	{
 		this.uri = uri;
 		this.pageDir = pageDir;
@@ -34,6 +35,12 @@ export class XoppEditorProvider implements CustomReadonlyEditorProvider<XoppDocu
 	async openCustomDocument(uri: Uri, openContext: CustomDocumentOpenContext,
 		_token: CancellationToken): Promise<XoppDocument>
 	{
+		const stat = await workspace.fs.stat(uri)
+
+		if(stat.type != FileType.File || stat.size == 0)
+		// uri is empty
+			return new XoppDocument(uri, null);
+
 		const cacheDir = path.join(this.context.extensionPath, "cache");
 		await fs.mkdir(cacheDir, { recursive: true });
 		const pageLoc = await fs.mkdtemp(cacheDir + path.sep);
@@ -77,10 +84,14 @@ export class XoppEditorProvider implements CustomReadonlyEditorProvider<XoppDocu
 			return parseInt(m[0]);
 		}
 
+		if(document.pageDir === null)
+			return;
+
 		var pages = (await fs.readdir(document.pageDir))
+			.filter(x => x.endsWith(".png"))
 			.sort((a,b) => pageNumber(a) - pageNumber(b))
 			.map(f => webviewPanel.webview.asWebviewUri(
-				Uri.joinPath(this.context.extensionUri, "cache", path.basename(document.pageDir), f)
+				Uri.joinPath(this.context.extensionUri, "cache", path.basename(document.pageDir as string), f)
 			))
 			.map(f => `<img src="${f}">`)
 			.join("<br/>");
