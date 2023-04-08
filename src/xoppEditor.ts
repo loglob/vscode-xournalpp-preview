@@ -47,7 +47,7 @@ export class XoppEditorProvider implements CustomReadonlyEditorProvider<XoppDocu
 		if(uri.scheme !== "file")
 		{
 			tmpFile = true;
-			file = path.join(cacheDir, "temp.xopp");
+			file = path.join(pageLoc, "temp.xopp");
 			await workspace.fs.copy(uri, Uri.file(file));
 		}
 		else
@@ -57,7 +57,7 @@ export class XoppEditorProvider implements CustomReadonlyEditorProvider<XoppDocu
 		var proc = cp.spawnSync("xournalpp", [ file, "-i", pageLoc + "/page.png" ]);
 
 		if(proc.status != 0)
-			throw new Error("Invoking xournalpp failed: " + proc.error?.message);
+			throw new Error(`Invoking xournalpp on '${file}' failed with code ${proc.status}: ${proc.stderr.toString()}`);
 
 		if(tmpFile)
 			await fs.rm(file);
